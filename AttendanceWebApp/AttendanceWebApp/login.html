@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Login – NFC Attendance</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="container">
+  <div class="logo"><h1>📱 NFC Attendance</h1><p>Scan, Track, Export</p></div>
+  <form id="authForm">
+    <div class="form-group"><label for="email">Email</label><input id="email" type="email" required></div>
+    <div class="form-group"><label for="password">Password</label><input id="password" type="password" required></div>
+    <button class="btn" type="submit" id="btnAuth">Login</button>
+    <div id="authError" class="error hidden"></div>
+  </form>
+  <div class="toggle-link" id="toggleAuth">Don't have an account? Sign up</div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="app.js"></script>
+  <script>
+    let loginMode = true;
+    const err = document.getElementById('authError');
+    document.getElementById('authForm').onsubmit = e=>{
+      e.preventDefault();
+      const em = email.value, pw = password.value;
+      if ((loginMode && Auth.login(em,pw)) || (!loginMode && Auth.signup(em,pw))) {
+        location.href = 'dashboard.html';
+      } else {
+        err.textContent = loginMode?'Invalid email or password':'User already exists';
+        err.classList.remove('hidden');
+      }
+    };
+    toggleAuth.onclick = ()=>{
+      loginMode = !loginMode;
+      btnAuth.textContent = loginMode?'Login':'Sign up';
+      toggleAuth.textContent = loginMode
+        ?"Don't have an account? Sign up"
+        :'Already have an account? Login';
+      err.classList.add('hidden');
+    };
+  </script>
+</body>
+</html>

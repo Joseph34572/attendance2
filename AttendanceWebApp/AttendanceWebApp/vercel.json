@@ -1,0 +1,25 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "*.html",
+      "use": "@vercel/static"
+    },
+    {
+      "src": "style.css",
+      "use": "@vercel/static"
+    },
+    {
+      "src": "app.js",
+      "use": "@vercel/static"
+    }
+  ],
+  "routes": [
+    { "src": "/",               "dest": "/login.html"      },
+    { "src": "/login.html",     "dest": "/login.html"      },
+    { "src": "/dashboard.html", "dest": "/dashboard.html"  },
+    { "src": "/sheet.html",     "dest": "/sheet.html"      },
+    { "src": "/register.html",  "dest": "/register.html"   },
+    { "src": "/attendance.html","dest": "/attendance.html" }
+  ]
+}

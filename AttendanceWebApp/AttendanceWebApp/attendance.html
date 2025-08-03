@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Attendance – NFC Attendance</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="container">
+  <div class="logo"><h1>✅ Take Attendance</h1><p id="attendSheetName"></p></div>
+  <div class="nfc-scanner">
+    <div class="nfc-icon">📱</div>
+    <div id="scanStatus" class="scan-status status-scanning">Ready to scan NFC cards</div>
+    <button class="btn" id="startBtn">Start Scanning</button>
+    <div id="attendanceResults"></div>
+  </div>
+  <div class="toggle-link" onclick="location.href=`sheet.html?id=${new URLSearchParams(location.search).get('id')}`">← Back to Sheet</div>
+
+  <script src="app.js"></script>
+  <script>
+    const sid = new URLSearchParams(location.search).get('id');
+    if (!Auth.currentUser) return location.href='login.html';
+    const sheet = Sheet.get(sid);
+    attendSheetName.textContent = sheet.name;
+    startBtn.onclick = async ()=>{
+      scanStatus.textContent='Scanning...'; scanStatus.className='scan-status status-scanning';
+      try {
+        while (true) {
+          const uid = await NFC.scan();
+          let msg = document.createElement('div');
+          try {
+            const name = (()=>{
+              const st = sheet.students.find(s=>s.uid===uid);
+              if(!st) throw new Error('Not registered');
+              const today = new Date().toISOString().split('T')[0];
+              if(st.attendance[today]) throw new Error('Already marked today');
+              st.attendance[today]=true; Sheet.update(sheet);
+              return st.name;
+            })();
+            msg.className='scan-status status-success'; msg.textContent=`✅ ${name} marked present`;
+          } catch(e){
+            msg.className='scan-status status-error'; msg.textContent=`❌ ${e.message}`;
+          }
+          attendanceResults.appendChild(msg);
+          await new Promise(r=>setTimeout(r,1000));
+        }
+      } catch(e){
+        scanStatus.textContent=`❌ ${e.message}`; scanStatus.className='scan-status status-error';
+      }
+    };
+  </script>
+</body>
+</html>
