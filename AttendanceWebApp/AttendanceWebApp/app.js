@@ -1,120 +1,222 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Sheet – NFC Attendance</title>
-  <link rel="stylesheet" href="style.css">
-</head>
-<body class="dashboard">
+// app.js
 
-  <!-- Header -->
-  <div class="header">
-    <button class="btn-small btn-secondary" onclick="location.href='dashboard.html'">
-      ← Dashboard
-    </button>
-    <div>
-      <h1 id="sheetTitle">Attendance Sheet</h1>
-      <p id="sheetMeta"></p>
-    </div>
-    <div>
-      <button id="exportBtn" class="btn-small btn-success">📤 Export Excel</button>
-      <button id="registerBtn" class="btn-small btn-primary">👤 Register Students</button>
-      <button id="takeBtn"     class="btn-small btn-primary">✅ Take Attendance</button>
-    </div>
-  </div>
+// ——— AuthSystem ———
+class AuthSystem {
+  constructor() {
+    this.currentUser = null;
+    this.init();
+  }
 
-  <!-- Attendance Table -->
-  <div id="attendanceTableContainer"></div>
-
-  <!-- Libraries and App Code -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-  <script src="app.js"></script>
-  <script>
-    // 1) Read sheet ID from URL
-    const params = new URLSearchParams(location.search);
-    const sheetId = params.get('id');
-
-    // 2) Redirect to login if no session
-    if (!Auth.currentUser) {
-      location.href = 'login.html';
+  init() {
+    const users = JSON.parse(localStorage.getItem('users') || '{}');
+    // If no users exist, clear any currentUser and stop
+    if (!Object.keys(users).length) {
+      localStorage.removeItem('currentUser');
+      return;
     }
-
-    // 3) Load the sheet object
-    const sheet = Sheet.get(sheetId);
-    if (!sheet) {
-      // invalid ID? back to dashboard
-      return location.href = 'dashboard.html';
-    }
-
-    // 4) Populate header
-    document.getElementById('sheetTitle').textContent = sheet.name;
-    document.getElementById('sheetMeta').textContent =
-      `Created: ${new Date(sheet.createdAt).toLocaleDateString()} | Students: ${sheet.students.length}`;
-
-    // 5) Render attendance table
-    function renderAttendanceTable() {
-      const container = document.getElementById('attendanceTableContainer');
-
-      if (!sheet.students.length) {
-        container.innerHTML = `
-          <div style="text-align:center;padding:2rem;background:white;border-radius:10px">
-            <h3>No students registered</h3>
-            <p>Register students first to start taking attendance.</p>
-          </div>`;
-        return;
+    // Otherwise, validate saved currentUser
+    const saved = localStorage.getItem('currentUser');
+    if (saved) {
+      const { email } = JSON.parse(saved);
+      if (users[email]) {
+        this.currentUser = { email };
+      } else {
+        localStorage.removeItem('currentUser');
       }
-
-      // gather all dates
-      const dateSet = new Set();
-      sheet.students.forEach(st => {
-        Object.keys(st.attendance || {}).forEach(d => dateSet.add(d));
-      });
-      const dates = Array.from(dateSet).sort();
-
-      // header row
-      const header = `
-        <tr>
-          <th>Name</th>
-          <th>NFC UID</th>
-          ${dates.map(d => `<th>${new Date(d).toLocaleDateString()}</th>`).join('')}
-        </tr>`;
-
-      // body rows
-      const body = sheet.students.map(st => `
-        <tr>
-          <td>${st.name}</td>
-          <td>${st.uid}</td>
-          ${dates.map(d => `
-            <td class="attendance-mark">
-              <span class="${st.attendance && st.attendance[d] ? 'present' : 'absent'}">
-                ${st.attendance && st.attendance[d] ? '✅' : '❌'}
-              </span>
-            </td>`).join('')}
-        </tr>
-      `).join('');
-
-      container.innerHTML = `
-        <table class="attendance-table">
-          <thead>${header}</thead>
-          <tbody>${body}</tbody>
-        </table>`;
     }
+  }
 
-    renderAttendanceTable();
+  login(email, pw) {
+    const users = JSON.parse(localStorage.getItem('users') || '{}');
+    if (users[email] && users[email].password === pw) {
+      this.currentUser = { email };
+      localStorage.setItem('currentUser', JSON.stringify(this.currentUser));
+      return true;
+    }
+    return false;
+  }
 
-    // 6) Button handlers
-    document.getElementById('exportBtn').addEventListener('click', () => {
-      Exporter.toExcel(sheet);
+  signup(email, pw) {
+    const users = JSON.parse(localStorage.getItem('users') || '{}');
+    if (users[email]) return false;
+    users[email] = { password: pw, createdAt: new Date().toISOString() };
+    localStorage.setItem('users', JSON.stringify(users));
+    this.currentUser = { email };
+    localStorage.setItem('currentUser', JSON.stringify(this.currentUser));
+    return true;
+  }
+
+  logout() {
+    localStorage.removeItem('currentUser');
+    this.currentUser = null;
+  }
+}
+
+const Auth = new AuthSystem();
+
+
+// ——— SheetManager ———
+class SheetManager {
+  constructor() {
+    this.current = null;
+  }
+
+  // key based on current user
+  _key() {
+    return `sheets_${Auth.currentUser.email}`;
+  }
+
+  // return array of sheets
+  all() {
+    return JSON.parse(localStorage.getItem(this._key()) || '[]');
+  }
+
+  // save array of sheets
+  save(arr) {
+    localStorage.setItem(this._key(), JSON.stringify(arr));
+  }
+
+  // create a new sheet
+  create(name) {
+    const sheet = {
+      id: Date.now().toString(),
+      name,
+      owner: Auth.currentUser.email,
+      createdAt: new Date().toISOString(),
+      students: []
+    };
+    const arr = this.all();
+    arr.push(sheet);
+    this.save(arr);
+    return sheet;
+  }
+
+  // delete sheet by id
+  delete(id) {
+    const arr = this.all().filter(s => s.id !== id);
+    this.save(arr);
+  }
+
+  // render sheets into container
+  loadTo(containerSelector) {
+    const arr = this.all();
+    const container = document.querySelector(containerSelector);
+    if (!arr.length) {
+      container.innerHTML = `
+        <div style="grid-column:1/-1;text-align:center;padding:2rem">
+          <h3>No attendance sheets yet</h3>
+          <p>Create your first attendance sheet!</p>
+        </div>`;
+      return;
+    }
+    container.innerHTML = arr.map(s => `
+      <div class="sheet-card">
+        <div class="sheet-title">${s.name}</div>
+        <div class="sheet-meta">
+          Created: ${new Date(s.createdAt).toLocaleDateString()}<br>
+          Students: ${s.students.length}
+        </div>
+        <div class="sheet-actions">
+          <button class="btn-small btn-primary" onclick="goSheet('${s.id}')">View</button>
+          <button class="btn-small btn-danger" onclick="delSheet('${s.id}')">Delete</button>
+        </div>
+      </div>`).join('');
+  }
+
+  // get sheet by id
+  get(id) {
+    return this.all().find(s => s.id === id);
+  }
+
+  // update an existing sheet
+  update(sheet) {
+    const arr = this.all();
+    const idx = arr.findIndex(s => s.id === sheet.id);
+    if (idx > -1) {
+      arr[idx] = sheet;
+      this.save(arr);
+    }
+  }
+}
+
+const Sheet = new SheetManager();
+
+
+// ——— NFCSystem ———
+class NFCSystem {
+  async scan() {
+    // Demo fallback if no Web NFC
+    if (!('NDEFReader' in window)) {
+      return new Promise(res => setTimeout(() => {
+        res('DEMO' + Math.random().toString(36).substr(2,8).toUpperCase());
+      }, 2000));
+    }
+    // Real NFC
+    return new Promise((resolve, reject) => {
+      const reader = new NDEFReader();
+      reader.scan().then(() => {
+        reader.addEventListener('reading', ({ serialNumber }) => {
+          resolve(serialNumber);
+        });
+        reader.addEventListener('readingerror', () => {
+          reject(new Error('Failed to read NFC card'));
+        });
+      }).catch(err => {
+        reject(new Error('Failed to start NFC scan: ' + err.message));
+      });
+    });
+  }
+}
+
+const NFC = new NFCSystem();
+
+
+// ——— ExportSystem ———
+class ExportSystem {
+  toExcel(sheet) {
+    const data = [];
+    const dates = new Set();
+
+    // Collect all dates
+    sheet.students.forEach(st => {
+      Object.keys(st.attendance || {}).forEach(d => dates.add(d));
+    });
+    const sorted = Array.from(dates).sort();
+
+    // Header row
+    data.push(['Name', 'NFC UID', ...sorted.map(d => new Date(d).toLocaleDateString())]);
+
+    // Student rows
+    sheet.students.forEach(st => {
+      data.push([
+        st.name,
+        st.uid,
+        ...sorted.map(d => (st.attendance && st.attendance[d]) ? 'Present' : 'Absent')
+      ]);
     });
 
-    document.getElementById('registerBtn').addEventListener('click', () => {
-      location.href = `register.html?id=${sheetId}`;
-    });
+    // Build workbook
+    const ws = XLSX.utils.aoa_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Attendance');
 
-    document.getElementById('takeBtn').addEventListener('click', () => {
-      location.href = `attendance.html?id=${sheetId}`;
-    });
-  </script>
-</body>
-</html>
+    // Download file
+    const fileName = `${sheet.name.replace(/[^a-z0-9]/gi,'_')}_${new Date().toISOString().split('T')[0]}.xlsx`;
+    XLSX.writeFile(wb, fileName);
+  }
+}
+
+const Exporter = new ExportSystem();
+
+
+// ——— Navigation Helpers ———
+function goSheet(id) {
+  location.href = `sheet.html?id=${id}`;
+}
+
+function delSheet(id) {
+  if (confirm('Are you sure you want to delete this sheet?')) {
+    Sheet.delete(id);
+    Sheet.loadTo('#sheetsContainer');
+  }
+}
