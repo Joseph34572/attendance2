@@ -1,12 +1,14 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Dashboard – NFC Attendance</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body class="dashboard">
 
+  <!-- Header -->
   <div class="header">
     <div>
       <h1>📊 Dashboard</h1>
@@ -14,24 +16,28 @@
     </div>
     <div>
       <button id="createSheetBtn" class="btn-small btn-primary">+ New Sheet</button>
-      <button id="logoutBtn" class="btn-small btn-secondary">Logout</button>
+      <button id="logoutBtn"     class="btn-small btn-secondary">Logout</button>
     </div>
   </div>
 
+  <!-- Sheets Grid -->
   <div id="sheetsContainer" class="sheets-grid"></div>
 
-  <!-- New Sheet Modal -->
-  <div id="newSheetModal" class="modal hidden">
+  <!-- New Sheet Modal (hidden by default) -->
+  <div id="newSheetModal" class="modal" style="display: none;">
     <div class="modal-content">
       <h2>Create New Attendance Sheet</h2>
       <form id="newSheetForm">
         <div class="form-group">
           <label for="sheetName">Sheet Name</label>
-          <input id="sheetName" type="text" placeholder="e.g., Math Class – Fall 2025" required>
+          <input id="sheetName" type="text"
+                 placeholder="e.g., Math Class – Fall 2025"
+                 required>
         </div>
-        <div style="display:flex;gap:1rem">
+        <div style="display: flex; gap: 1rem;">
           <button type="submit" class="btn" style="flex:1">Create Sheet</button>
-          <button id="cancelSheetBtn" type="button" class="btn-small btn-secondary" style="flex:1">
+          <button id="cancelSheetBtn" type="button"
+                  class="btn-small btn-secondary" style="flex:1">
             Cancel
           </button>
         </div>
@@ -39,6 +45,8 @@
     </div>
   </div>
 
+  <!-- Shared JS libraries & app code -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <script src="app.js"></script>
   <script>
     // Redirect to login if not signed in
@@ -46,41 +54,41 @@
       location.href = 'login.html';
     }
 
-    // Show user email
+    // Show the logged-in user's email
     document.getElementById('userEmail').textContent = Auth.currentUser.email;
 
-    // Load existing sheets
+    // Load and render all sheets into the grid
     Sheet.loadTo('#sheetsContainer');
 
-    // Modal elements
-    const newSheetModal   = document.getElementById('newSheetModal');
-    const createSheetBtn  = document.getElementById('createSheetBtn');
-    const cancelSheetBtn  = document.getElementById('cancelSheetBtn');
-    const newSheetForm    = document.getElementById('newSheetForm');
-    const sheetNameInput  = document.getElementById('sheetName');
+    // Grab modal & form elements
+    const newSheetModal  = document.getElementById('newSheetModal');
+    const createSheetBtn = document.getElementById('createSheetBtn');
+    const cancelSheetBtn = document.getElementById('cancelSheetBtn');
+    const newSheetForm   = document.getElementById('newSheetForm');
+    const sheetNameInput = document.getElementById('sheetName');
 
-    // Open modal
+    // Show modal when "+ New Sheet" is clicked
     createSheetBtn.addEventListener('click', () => {
       sheetNameInput.value = '';
-      newSheetModal.classList.remove('hidden');
+      newSheetModal.style.display = 'flex';
     });
 
-    // Cancel -> hide modal
+    // Hide modal when "Cancel" is clicked
     cancelSheetBtn.addEventListener('click', () => {
-      newSheetModal.classList.add('hidden');
+      newSheetModal.style.display = 'none';
     });
 
-    // Submit -> create sheet, reload list, hide modal
+    // On form submit: create sheet, re-render grid, hide modal
     newSheetForm.addEventListener('submit', (e) => {
       e.preventDefault();
       const name = sheetNameInput.value.trim();
-      if (!name) return; // required anyway
+      if (!name) return;
       Sheet.create(name);
       Sheet.loadTo('#sheetsContainer');
-      newSheetModal.classList.add('hidden');
+      newSheetModal.style.display = 'none';
     });
 
-    // Logout button
+    // Logout button clears session and returns to login
     document.getElementById('logoutBtn').addEventListener('click', () => {
       Auth.logout();
       location.href = 'login.html';
