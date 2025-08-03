@@ -9,12 +9,10 @@ class AuthSystem {
 
   init() {
     const users = JSON.parse(localStorage.getItem('users') || '{}');
-    // If no users exist, clear any currentUser and stop
     if (!Object.keys(users).length) {
       localStorage.removeItem('currentUser');
       return;
     }
-    // Otherwise, validate saved currentUser
     const saved = localStorage.getItem('currentUser');
     if (saved) {
       const { email } = JSON.parse(saved);
@@ -51,7 +49,6 @@ class AuthSystem {
     this.currentUser = null;
   }
 }
-
 const Auth = new AuthSystem();
 
 
@@ -61,22 +58,18 @@ class SheetManager {
     this.current = null;
   }
 
-  // key based on current user
   _key() {
     return `sheets_${Auth.currentUser.email}`;
   }
 
-  // return array of sheets
   all() {
     return JSON.parse(localStorage.getItem(this._key()) || '[]');
   }
 
-  // save array of sheets
   save(arr) {
     localStorage.setItem(this._key(), JSON.stringify(arr));
   }
 
-  // create a new sheet
   create(name) {
     const sheet = {
       id: Date.now().toString(),
@@ -91,13 +84,11 @@ class SheetManager {
     return sheet;
   }
 
-  // delete sheet by id
   delete(id) {
     const arr = this.all().filter(s => s.id !== id);
     this.save(arr);
   }
 
-  // render sheets into container
   loadTo(containerSelector) {
     const arr = this.all();
     const container = document.querySelector(containerSelector);
@@ -123,12 +114,10 @@ class SheetManager {
       </div>`).join('');
   }
 
-  // get sheet by id
   get(id) {
     return this.all().find(s => s.id === id);
   }
 
-  // update an existing sheet
   update(sheet) {
     const arr = this.all();
     const idx = arr.findIndex(s => s.id === sheet.id);
@@ -138,36 +127,23 @@ class SheetManager {
     }
   }
 }
-
 const Sheet = new SheetManager();
 
 
 // ——— NFCSystem ———
 class NFCSystem {
   async scan() {
-    // Demo fallback if no Web NFC
     if (!('NDEFReader' in window)) {
-      return new Promise(res => setTimeout(() => {
-        res('DEMO' + Math.random().toString(36).substr(2,8).toUpperCase());
-      }, 2000));
+      throw new Error('NFC not supported on this device/browser.');
     }
-    // Real NFC
+    const reader = new NDEFReader();
+    await reader.scan();
     return new Promise((resolve, reject) => {
-      const reader = new NDEFReader();
-      reader.scan().then(() => {
-        reader.addEventListener('reading', ({ serialNumber }) => {
-          resolve(serialNumber);
-        });
-        reader.addEventListener('readingerror', () => {
-          reject(new Error('Failed to read NFC card'));
-        });
-      }).catch(err => {
-        reject(new Error('Failed to start NFC scan: ' + err.message));
-      });
+      reader.onreading = ({ serialNumber }) => resolve(serialNumber);
+      reader.onreadingerror = () => reject(new Error('Failed to read NFC card'));
     });
   }
 }
-
 const NFC = new NFCSystem();
 
 
@@ -177,16 +153,13 @@ class ExportSystem {
     const data = [];
     const dates = new Set();
 
-    // Collect all dates
     sheet.students.forEach(st => {
       Object.keys(st.attendance || {}).forEach(d => dates.add(d));
     });
     const sorted = Array.from(dates).sort();
 
-    // Header row
     data.push(['Name', 'NFC UID', ...sorted.map(d => new Date(d).toLocaleDateString())]);
 
-    // Student rows
     sheet.students.forEach(st => {
       data.push([
         st.name,
@@ -195,17 +168,14 @@ class ExportSystem {
       ]);
     });
 
-    // Build workbook
     const ws = XLSX.utils.aoa_to_sheet(data);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Attendance');
 
-    // Download file
     const fileName = `${sheet.name.replace(/[^a-z0-9]/gi,'_')}_${new Date().toISOString().split('T')[0]}.xlsx`;
     XLSX.writeFile(wb, fileName);
   }
 }
-
 const Exporter = new ExportSystem();
 
 

@@ -1,46 +1,85 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <title>Register – NFC Attendance</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body class="container">
-  <div class="logo"><h1>👤 Student Registration</h1><p id="regSheetName"></p></div>
+
+  <div class="logo">
+    <h1>👤 Student Registration</h1>
+    <p id="regSheetName"></p>
+  </div>
+
   <form id="regForm">
-    <div class="form-group"><label>Name</label><input id="studentName" type="text" required></div>
+    <div class="form-group">
+      <label for="studentName">Student Name</label>
+      <input id="studentName" type="text" required>
+    </div>
     <button type="button" class="btn" id="scanBtn">📱 Scan NFC Card</button>
     <div id="nfcStatus" class="scan-status hidden"></div>
     <div id="regError" class="error hidden"></div>
   </form>
-  <div class="toggle-link" onclick="location.href=`sheet.html?id=${new URLSearchParams(location.search).get('id')}`">← Back to Sheet</div>
 
+  <div class="toggle-link" id="backLink">← Back to Sheet</div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <script src="app.js"></script>
   <script>
-    const sid = new URLSearchParams(location.search).get('id');
-    if (!Auth.currentUser) location.href='login.html';
-    const sheet = Sheet.get(sid);
-    regSheetName.textContent = sheet.name;
-    scanBtn.onclick = async ()=>{
-      if(!studentName.value.trim()) return alert('Enter name first');
-      nfcStatus.textContent='Hold phone near NFC...';
-      nfcStatus.className='scan-status status-scanning';
-      regError.classList.add('hidden');
-      try {
-        const uid = await NFC.scan();
-        sheet.students.push({ name: studentName.value.trim(), uid, attendance:{} });
-        Sheet.update(sheet);
-        nfcStatus.textContent=`✅ ${studentName.value.trim()} registered!`;
-        nfcStatus.className='scan-status status-success';
-        studentName.value='';
-        setTimeout(()=>nfcStatus.classList.add('hidden'),3000);
-      } catch(e){
-        nfcStatus.textContent=`❌ ${e.message}`;
-        nfcStatus.className='scan-status status-error';
-        regError.textContent=e.message;
-        regError.classList.remove('hidden');
+    document.addEventListener('DOMContentLoaded', () => {
+      const params = new URLSearchParams(location.search);
+      const sheetId = params.get('id');
+
+      if (!Auth.currentUser || !sheetId) {
+        location.href = 'dashboard.html';
+        return;
       }
-    };
+      const sheet = Sheet.get(sheetId);
+      if (!sheet) {
+        location.href = 'dashboard.html';
+        return;
+      }
+
+      document.getElementById('regSheetName').textContent = sheet.name;
+      document.getElementById('backLink').addEventListener('click', () => {
+        location.href = `sheet.html?id=${sheetId}`;
+      });
+
+      const scanBtn   = document.getElementById('scanBtn');
+      const statusDiv = document.getElementById('nfcStatus');
+      const errDiv    = document.getElementById('regError');
+      const nameInput = document.getElementById('studentName');
+
+      scanBtn.addEventListener('click', async () => {
+        const name = nameInput.value.trim();
+        if (!name) {
+          errDiv.textContent = 'Please enter student name first';
+          errDiv.classList.remove('hidden');
+          return;
+        }
+        errDiv.classList.add('hidden');
+        statusDiv.textContent = 'Hold your phone near the NFC card…';
+        statusDiv.className = 'scan-status status-scanning';
+        statusDiv.classList.remove('hidden');
+
+        try {
+          const uid = await NFC.scan();
+          sheet.students.push({ name, uid, attendance: {} });
+          Sheet.update(sheet);
+
+          statusDiv.textContent = `✅ ${name} registered successfully! (UID: ${uid})`;
+          statusDiv.className = 'scan-status status-success';
+          nameInput.value = '';
+        } catch (e) {
+          statusDiv.textContent = `❌ ${e.message}`;
+          statusDiv.className = 'scan-status status-error';
+          errDiv.textContent = e.message;
+          errDiv.classList.remove('hidden');
+        }
+      });
+    });
   </script>
 </body>
 </html>
