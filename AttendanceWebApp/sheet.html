@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Sheet – NFC Attendance</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="dashboard">
+  <div class="header">
+    <button class="btn-small btn-secondary" onclick="location.href='dashboard.html'">← Dashboard</button>
+    <div><h1 id="sheetTitle">Attendance Sheet</h1><p id="sheetMeta"></p></div>
+    <div>
+      <button id="exportBtn" class="btn-small btn-success">📤 Export Excel</button>
+      <button id="registerBtn" class="btn-small btn-primary">👤 Register Students</button>
+      <button id="takeBtn" class="btn-small btn-primary">✅ Take Attendance</button>
+    </div>
+  </div>
+  <div id="attendanceTableContainer"></div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="app.js"></script>
+  <script>
+    const params = new URLSearchParams(location.search);
+    const sid = params.get('id');
+    if (!Auth.currentUser) return location.href='login.html';
+    const sheet = Sheet.get(sid);
+    if (!sheet) return location.href='dashboard.html';
+    document.getElementById('sheetTitle').textContent = sheet.name;
+    document.getElementById('sheetMeta').textContent =
+      `Created: ${new Date(sheet.createdAt).toLocaleDateString()} | Students: ${sheet.students.length}`;
+    Sheet.current = sheet;
+    Sheet.renderAttendanceTable = function() {
+      // use same code as in single-page version
+      // ...
+    };
+    Sheet.renderAttendanceTable();
+    exportBtn.onclick = ()=> Exporter.toExcel(sheet);
+    registerBtn.onclick = ()=> location.href=`register.html?id=${sid}`;
+    takeBtn.onclick = ()=> location.href=`attendance.html?id=${sid}`;
+  </script>
+</body>
+</html>

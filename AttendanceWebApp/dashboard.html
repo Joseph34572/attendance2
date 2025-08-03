@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Dashboard – NFC Attendance</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="dashboard">
+  <div class="header">
+    <div><h1>📊 Dashboard</h1><p id="userEmail"></p></div>
+    <div>
+      <button id="createSheetBtn" class="btn-small btn-primary">+ New Sheet</button>
+      <button id="logoutBtn" class="btn-small btn-secondary">Logout</button>
+    </div>
+  </div>
+  <div id="sheetsContainer" class="sheets-grid"></div>
+
+  <div id="newSheetModal" class="modal hidden">
+    <div class="modal-content">
+      <h2>Create New Attendance Sheet</h2>
+      <form id="newSheetForm">
+        <div class="form-group">
+          <label for="sheetName">Sheet Name</label>
+          <input id="sheetName" type="text" placeholder="e.g., Math Class – Fall 2025" required>
+        </div>
+        <div style="display:flex;gap:1rem">
+          <button type="submit" class="btn" style="flex:1">Create Sheet</button>
+          <button id="cancelSheetBtn" type="button" class="btn-small btn-secondary" style="flex:1">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+  <script>
+    if (!Auth.currentUser) location.href='login.html';
+    userEmail.textContent = Auth.currentUser.email;
+    Sheet.loadTo('#sheetsContainer');
+    createSheetBtn.onclick = ()=> newSheetModal.classList.remove('hidden');
+    cancelSheetBtn.onclick = ()=> newSheetModal.classList.add('hidden');
+    newSheetForm.onsubmit = e=>{
+      e.preventDefault();
+      Sheet.create(sheetName.value);
+      sheetName.value = '';
+      newSheetModal.classList.add('hidden');
+      Sheet.loadTo('#sheetsContainer');
+    };
+    logoutBtn.onclick = ()=>{
+      Auth.logout();
+      location.href='login.html';
+    };
+  </script>
+</body>
+</html>
