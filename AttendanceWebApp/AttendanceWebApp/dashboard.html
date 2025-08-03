@@ -6,15 +6,21 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body class="dashboard">
+
   <div class="header">
-    <div><h1>📊 Dashboard</h1><p id="userEmail"></p></div>
+    <div>
+      <h1>📊 Dashboard</h1>
+      <p id="userEmail"></p>
+    </div>
     <div>
       <button id="createSheetBtn" class="btn-small btn-primary">+ New Sheet</button>
       <button id="logoutBtn" class="btn-small btn-secondary">Logout</button>
     </div>
   </div>
+
   <div id="sheetsContainer" class="sheets-grid"></div>
 
+  <!-- New Sheet Modal -->
   <div id="newSheetModal" class="modal hidden">
     <div class="modal-content">
       <h2>Create New Attendance Sheet</h2>
@@ -25,7 +31,9 @@
         </div>
         <div style="display:flex;gap:1rem">
           <button type="submit" class="btn" style="flex:1">Create Sheet</button>
-          <button id="cancelSheetBtn" type="button" class="btn-small btn-secondary" style="flex:1">Cancel</button>
+          <button id="cancelSheetBtn" type="button" class="btn-small btn-secondary" style="flex:1">
+            Cancel
+          </button>
         </div>
       </form>
     </div>
@@ -33,22 +41,50 @@
 
   <script src="app.js"></script>
   <script>
-    if (!Auth.currentUser) location.href='login.html';
-    userEmail.textContent = Auth.currentUser.email;
+    // Redirect to login if not signed in
+    if (!Auth.currentUser) {
+      location.href = 'login.html';
+    }
+
+    // Show user email
+    document.getElementById('userEmail').textContent = Auth.currentUser.email;
+
+    // Load existing sheets
     Sheet.loadTo('#sheetsContainer');
-    createSheetBtn.onclick = ()=> newSheetModal.classList.remove('hidden');
-    cancelSheetBtn.onclick = ()=> newSheetModal.classList.add('hidden');
-    newSheetForm.onsubmit = e=>{
-      e.preventDefault();
-      Sheet.create(sheetName.value);
-      sheetName.value = '';
+
+    // Modal elements
+    const newSheetModal   = document.getElementById('newSheetModal');
+    const createSheetBtn  = document.getElementById('createSheetBtn');
+    const cancelSheetBtn  = document.getElementById('cancelSheetBtn');
+    const newSheetForm    = document.getElementById('newSheetForm');
+    const sheetNameInput  = document.getElementById('sheetName');
+
+    // Open modal
+    createSheetBtn.addEventListener('click', () => {
+      sheetNameInput.value = '';
+      newSheetModal.classList.remove('hidden');
+    });
+
+    // Cancel -> hide modal
+    cancelSheetBtn.addEventListener('click', () => {
       newSheetModal.classList.add('hidden');
+    });
+
+    // Submit -> create sheet, reload list, hide modal
+    newSheetForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const name = sheetNameInput.value.trim();
+      if (!name) return; // required anyway
+      Sheet.create(name);
       Sheet.loadTo('#sheetsContainer');
-    };
-    logoutBtn.onclick = ()=>{
+      newSheetModal.classList.add('hidden');
+    });
+
+    // Logout button
+    document.getElementById('logoutBtn').addEventListener('click', () => {
       Auth.logout();
-      location.href='login.html';
-    };
+      location.href = 'login.html';
+    });
   </script>
 </body>
 </html>
