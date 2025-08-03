@@ -1,52 +1,99 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Attendance – NFC Attendance</title>
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css"/>
 </head>
 <body class="container">
-  <div class="logo"><h1>✅ Take Attendance</h1><p id="attendSheetName"></p></div>
+
+  <div class="logo">
+    <h1>✅ Take Attendance</h1>
+    <p id="attendSheetName"></p>
+  </div>
+
   <div class="nfc-scanner">
     <div class="nfc-icon">📱</div>
-    <div id="scanStatus" class="scan-status status-scanning">Ready to scan NFC cards</div>
+    <div id="scanStatus" class="scan-status status-scanning">
+      Ready to scan NFC cards
+    </div>
     <button class="btn" id="startBtn">Start Scanning</button>
     <div id="attendanceResults"></div>
   </div>
-  <div class="toggle-link" onclick="location.href=`sheet.html?id=${new URLSearchParams(location.search).get('id')}`">← Back to Sheet</div>
+
+  <div class="toggle-link" id="backLink">← Back to Sheet</div>
 
   <script src="app.js"></script>
   <script>
-    const sid = new URLSearchParams(location.search).get('id');
-    if (!Auth.currentUser) return location.href='login.html';
-    const sheet = Sheet.get(sid);
-    attendSheetName.textContent = sheet.name;
-    startBtn.onclick = async ()=>{
-      scanStatus.textContent='Scanning...'; scanStatus.className='scan-status status-scanning';
-      try {
-        while (true) {
-          const uid = await NFC.scan();
-          let msg = document.createElement('div');
-          try {
-            const name = (()=>{
-              const st = sheet.students.find(s=>s.uid===uid);
-              if(!st) throw new Error('Not registered');
-              const today = new Date().toISOString().split('T')[0];
-              if(st.attendance[today]) throw new Error('Already marked today');
-              st.attendance[today]=true; Sheet.update(sheet);
-              return st.name;
-            })();
-            msg.className='scan-status status-success'; msg.textContent=`✅ ${name} marked present`;
-          } catch(e){
-            msg.className='scan-status status-error'; msg.textContent=`❌ ${e.message}`;
-          }
-          attendanceResults.appendChild(msg);
-          await new Promise(r=>setTimeout(r,1000));
-        }
-      } catch(e){
-        scanStatus.textContent=`❌ ${e.message}`; scanStatus.className='scan-status status-error';
+    document.addEventListener('DOMContentLoaded', () => {
+      const params = new URLSearchParams(location.search);
+      const sheetId = params.get('id');
+      if (!Auth.currentUser || !sheetId) {
+        location.href = 'dashboard.html';
+        return;
       }
-    };
+      const sheet = Sheet.get(sheetId);
+      if (!sheet) {
+        location.href = 'dashboard.html';
+        return;
+      }
+
+      document.getElementById('attendSheetName').textContent = sheet.name;
+      document.getElementById('backLink').addEventListener('click', () => {
+        location.href = `sheet.html?id=${sheetId}`;
+      });
+
+      const scanStatus    = document.getElementById('scanStatus');
+      const attendanceRes = document.getElementById('attendanceResults');
+      const startBtn      = document.getElementById('startBtn');
+
+      let scanning = false;
+
+      startBtn.addEventListener('click', async () => {
+        if (scanning) return;
+        scanning = true;
+        attendanceRes.innerHTML = '';
+        scanStatus.textContent = 'Hold your phone near NFC cards to mark attendance...';
+        scanStatus.className = 'scan-status status-scanning';
+
+        // Continuously listen for scans until error
+        try {
+          while (scanning) {
+            const uid = await NFC.scan();
+
+            // Find student
+            const student = sheet.students.find(s => s.uid === uid);
+            let msgEl = document.createElement('div');
+            msgEl.style.marginTop = '1rem';
+
+            if (!student) {
+              msgEl.className = 'scan-status status-error';
+              msgEl.textContent = `❌ Unknown card: ${uid}`;
+            } else {
+              const today = new Date().toISOString().split('T')[0];
+              if (student.attendance[today]) {
+                msgEl.className = 'scan-status status-error';
+                msgEl.textContent = `❌ ${student.name} already marked today`;
+              } else {
+                // Mark attendance
+                student.attendance[today] = true;
+                Sheet.update(sheet);
+                msgEl.className = 'scan-status status-success';
+                msgEl.textContent = `✅ ${student.name} marked present`;
+              }
+            }
+
+            attendanceRes.appendChild(msgEl);
+            // brief pause before next scan
+            await new Promise(r => setTimeout(r, 500));
+          }
+        } catch (e) {
+          scanStatus.textContent = `❌ ${e.message}`;
+          scanStatus.className = 'scan-status status-error';
+        }
+      });
+    });
   </script>
 </body>
 </html>
